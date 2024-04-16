@@ -10,3 +10,4 @@ This folder contains software from other authors, which can be used for non-comm
 - **gmatrix**: [点击跳转](https://github.com/chaoning/GMAT)
 - **dmuai**: [点击跳转](https://dmu.ghpc.au.dk/dmu/index.html)
 - **dmu1**: [点击跳转](https://dmu.ghpc.au.dk/dmu/index.html)
+- **dmu4**: [点击跳转](https://dmu.ghpc.au.dk/dmu/index.html)
