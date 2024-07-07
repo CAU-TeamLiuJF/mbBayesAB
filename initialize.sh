@@ -1,67 +1,67 @@
 #!/usr/bin/bash
 
 ########################################################################################################################
-## 版本: 1.1.0
-## 作者: 李伟宁 liwn@cau.edu.cn
-## 日期: 2023-07-05
+## Version: 1.2.0
+## Author:  Liweining liwn@cau.edu.cn
+## Date:    2023-07-07
 ## 
-## 用于初始化该项目脚本中的路径，主要包括
-## 1.更换R语言脚本中的解释器路径
-## 2.更换项目文件夹
+## Used to initialize the path in the project script, including
+## 1.Replace the interpreter path in the R language script
+## 2.Change project folder
 ## 
-## 使用: ./initialize.sh
+## Usage: ./initialize.sh
 ## 
 ## License:
 ##  This script is licensed under the GPL-3.0 License.
 ##  See https://www.gnu.org/licenses/gpl-3.0.en.html for details.
 ########################################################################################################################
 
-## 此脚本所在路径
+## The path where this script is located
 if [[ ${code} ]]; then
   [[ ! -d ${code} ]] && echo "${code} not exists! " && exit 5
 else
   main_path=$(dirname "$(readlink -f "$0")")
 fi
 
-## 切换到主脚本所在路径
+## Change to the path where the main script is located
 cd ${main_path} || exit 5
 
-## 将主脚本中的脚本路径进行替换
-sed -i -E "s|(code=).*/(GP-cross-validation)|\1${main_path}|" main.sh
-sed -i -E "s|(output=).*/(GP-cross-validation)|\1${main_path}|" ./shell/GP_cross_validation.sh
+## Replace the script path in the main script
+sed -i -E "s|.*/(mbBayesAB)|\1${main_path}|" main.sh
 
-## 加载自定义函数
+## Load custom functions
 func=${main_path}/shell/function.sh
 [[ ! -s ${func} ]] && echo "Error: ${func} not found! " && exit 5
 source ${func}
 
-## 检查R语言是否能在环境变量中找到
-check_command Rscript
+## Check if R language can be found in environment variables
+check_command Rscript plink
 if [[ $? -ne 0 ]]; then
-  echo "未在当前环境下发现R语言，请先安装R语言或加载环境变量（如module load R）后再运行本脚本"
+  echo "Error: R language was not found in the current environment! "
+  echo "Please install R language or load environment variables (such as module load R) before running this script"
   exit 1
 fi
 
-## R安装路径
+## R installation path
 R_PATH=$(which Rscript)
 
-## 将R脚本中的第一行替换为脚本上述的脚本解释器
+## Replace the first line in the R script with the script interpreter mentioned above
 find ./R -name "*.R" | while read -r file; do
-  # 检查脚本的第一行是否为脚本解释器路径
+  ## Check if the first line of the script is the script interpreter path
   if [[ $(head -n 1 "$file") =~ ^#!.*Rscript$ ]]; then
-    # 替换第一行中的脚本解释器路径为 R_PATH 变量中保存的路径
+    ## Replace the script interpreter path in the first line with the path saved in the R_PATH variable
     sed -i "1s|.*|#!$R_PATH|" "$file"
   else
-    # 在脚本的第一行之前插入新的脚本解释器路径行
+    # Insert a new script interpreter path line before the first line of the script
     sed -i "1i #!$R_PATH" "$file"
   fi
 done
 
-## 将所有的脚本赋予可执行权限
+## Assign executable permissions to all scripts
 chmod u+x main.sh
 chmod u+x ./bin/* ./R/* ./shell/*
 
-## 检查需要的R包是否已安装
+## Check if the required R package has been installed
 pkg_check=${main_path}/R/package_required.R
 if [[ -s $pkg_check ]]; then
   ${pkg_check}
@@ -69,7 +69,7 @@ else
   echo "Error: file ${pkg_check} not found! " && exit 5
 fi
 
-## 创建需要的文件夹
+## Create the required folder
 mkdir -p ${main_path}/log
 
 [[ $? -eq 0 ]] && echo "Initialization completed."

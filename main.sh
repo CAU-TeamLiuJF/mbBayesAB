@@ -1,17 +1,18 @@
 #!/bin/usr/bash
 
 ########################################################################################################################
-## 版  本: 1.0.0
-## 作  者: 李伟宁 liwn@cau.edu.cn
-## Orcid: 0000-0002-0578-3812
-## 单  位: College of Animal Science and Technology, China Agricul-tural University, Haidian, 100193, Beijing, China
-## 日  期: 2024-03-14
+## Version:   1.2.0
+## Author:    Liweining liwn@cau.edu.cn
+## Orcid:     0000-0002-0578-3812
+## Institute: College of Animal Science and Technology, China Agricul-tural University, Haidian, 100193, Beijing, China
+## Date:      2024-07-07
 ##
-## 功能：
-##  用于复现文章"Multi-trait Bayesian models enhance the accuracy of genomic prediction in 
-##  multi-breed reference populations"文章中的研究结果
+## Function：
+##  Used to reproduce the research results in the article "Multi-trait Bayesian models enhance the accuracy of genomic 
+## prediction in multi-breed reference populations"
 ##
-## 数据来源：
+##
+## Data sources ：
 ##  Xie, L., J. Qin, L. Rao, X. Tang and D. Cui et al., 2021 Accurate prediction and genome-wide 
 ##  association analysis of digital intramuscular fat content in longissimus muscle of pigs. Animal Genetics 
 ##  52: 633-644. https://doi.org/10.1111/age.13121
@@ -25,14 +26,14 @@
 ##  See https://www.gnu.org/licenses/gpl-3.0.en.html for details.
 ########################################################################################################################
 
-## ***注意***：使用前需要以绝对路径形式运行根目录下的initialize.sh脚本，以修改脚本中相应的路径，如：
-## $ /public/home/liwn/GitHub/mbBayesAB/initialize.sh
+## Note：Initialize the script, modify some paths in the script
+/public/home/liujf/liwn/code/GitHub/debug/mbBayesAB/initialize.sh
 
-## 主脚本路径
-code=/public/home/liujf/liwn/code/GitHub/mbBayesAB
+## Path of main script
+code=/public/home/liujf/liwn/code/GitHub/debug/mbBayesAB
 GP_cross=${code}/shell/GP_cross_validation.sh
 
-## 将程序路径加到环境变量中
+## Add program path to environment variable
 export PATH=${code}/bin:$PATH
 
 ######################## 数据分析 ########################
@@ -40,11 +41,11 @@ for source in Xie2021 Lee2019; do
   pro=${code}/data/${source}
   cd ${pro} || exit
 
-  ## 表型和基因型文件
+  ## Phenotype and genotype files
   phef=${pro}/phenotype.txt
   bfile=${pro}/genotype
 
-  ## 品种和性状名称
+  ## breeds (populations) and trait names
   if [[ ${source} == "Xie2021" ]]; then
     all_eff="2 3 1"  ## intercept sex additive
     breeds=(YY LL)
@@ -55,7 +56,7 @@ for source in Xie2021 Lee2019; do
     traits_all=(WWT YWT)
   fi
 
-  ## 群体结构
+  ## Analysis of population genetic structure
   $GP_cross \
     --proj ${pro} \
     --breeds "${breeds[*]}" \
@@ -63,12 +64,12 @@ for source in Xie2021 Lee2019; do
     --code ${code} \
     --type struct
 
-  ## 计算校正表型
+  ## Calculate corrected phenotype
   for trait in "${traits_all[@]}"; do
     mkdir -p ${pro}/${trait}
 
-    ## 需根据Linux服务器特性和需求调整参数
-    ##  注意：如果在个人电脑而不是装有slurm作业管理系统的服务器上运行，请注释掉sbatch所在行，下同
+    ## Parameters need to be adjusted according to the characteristics and requirements of Linux servers
+    ## Note: If the Slurm workload manager is not installed in the system, please comment out the line where 'sbatch' is located in whole script
     sbatch -c2 --mem=4G \
     $GP_cross \
       --proj ${pro} \
@@ -84,12 +85,12 @@ for source in Xie2021 Lee2019; do
     sleep 5
   done
 
-  ## 等待校正表型计算结束
+  ## Wait for the correction phenotype calculation to be completed
   while [[ $(wc -l 2>/dev/null <${pro}/${traits_all[-1]}/${breeds[-1]}/phe_adj_BLUP.SOL) -lt 10 ]]; do
     sleep 3
   done
 
-  ## 用于划分参考/验证集的随机数种子
+  ## Random number seed for splitting reference/validation sets
   if [[ ! -s "${pro}/random.seed" ]]; then
     seed=$RANDOM
     echo ${seed} >"${pro}/random.seed"
@@ -97,7 +98,7 @@ for source in Xie2021 Lee2019; do
     seed=$(cat "${pro}/random.seed")
   fi
 
-  ## 计算品种内评估准确性GBLUP
+  ## Calculate the accuracy of GBLUP model in within-breed prediction
   for trait in "${traits_all[@]}"; do
     [[ -s "${pro}/${trait}/${breeds[-1]}/accur_GBLUP.txt" ]] && continue
     sbatch -c50 --time=2:30:00 --mem=150G \
@@ -118,12 +119,12 @@ for source in Xie2021 Lee2019; do
     sleep 5
   done
 
-  ## 等待
+  ## wait for the GBLUP accuracy calculation to be completed
   while [[ ! -s ${pro}/${traits_all[-1]}/${breeds[-1]}/val1/rep1/pheno.txt ]]; do
     sleep 2
   done
 
-  ## 计算多品种GBLUP评估准确性
+  ## Calculate the accuracy of GBLUP model in multi-breed prediction
   for trait in "${traits_all[@]}"; do
     for type in blend union; do
       sbatch -c50 --time=4:00:00 --mem=150G \
@@ -139,10 +140,11 @@ for source in Xie2021 Lee2019; do
         --seed ${seed} \
         --thread 50 \
         --suffix
+      sleep 5
     done
   done
 
-  ## 计算多品种多性状Bayes评估准确性 —————————— 不同的尺度参数
+  ## Calculate the accuracy of Bayes multi-breed prediction —————————— differen scale matrix
   for trait in "${traits_all[@]}"; do
     for So in iden3 iden iden0.01 phe; do
       sbatch -c50 --exclude=cnode1002 --time=2:30:00 --mem=150G \
@@ -159,11 +161,11 @@ for source in Xie2021 Lee2019; do
         --VaSori ${So} \
         --dirPre ${So}_ \
         --suffix
-        sleep 10
+        sleep 5
     done
   done
 
-  ## 计算多品种多性状Bayes评估准确性 —————————— 不同的自由度参数
+  ## Calculate the accuracy of Bayes multi-breed prediction —————————— differen degree of freedom
   for trait in "${traits_all[@]}"; do
     for df in 2 3 4 5 6 100; do
       sbatch -c50 --exclude=cnode1002 --time=2:30:00 --mem=150G \
@@ -180,11 +182,11 @@ for source in Xie2021 Lee2019; do
         --dfva ${df} \
         --dirPre df${df}_ \
         --suffix
-        sleep 10
+        sleep 5
     done
   done
 
-  ## 计算多品种多性状Bayes评估准确性 —————————— HIW-WI先验
+  ## Calculate the accuracy of Bayes multi-breed prediction —————————— HIW-WI prior
   for trait in "${traits_all[@]}"; do
     sbatch -c50 --exclude=cnode1002 --time=2:30:00 --mem=150G \
     $GP_cross \
@@ -201,9 +203,10 @@ for source in Xie2021 Lee2019; do
       --dfva 3 \
       --dirPre wishart_df3_ \
       --suffix
+    sleep 5
   done
 
-  ## 计算多品种多性状Bayes评估准确性 —————————— HIW-IG先验
+  ## Calculate the accuracy of Bayes multi-breed prediction —————————— HIW-IG prior
   for trait in "${traits_all[@]}"; do
     sbatch -c50 --exclude=cnode1002 --time=2:30:00 --mem=150G \
     $GP_cross \
@@ -220,9 +223,10 @@ for source in Xie2021 Lee2019; do
       --dfva 2 \
       --dirPre invgamma_df2_ \
       --suffix
+    sleep 5
   done
 
-  ## 计算多品种多性状Bayes评估准确性 —————————— 基因组区块大小
+  ## Calculate the accuracy of Bayes multi-breed prediction —————————— Different genome block sizes
   for trait in "${traits_all[@]}"; do
     for win in 1 25 50 100 200 whole; do
       sbatch -c50 --exclude=cnode1002 --time=2:30:00 --mem=150G \
@@ -239,10 +243,11 @@ for source in Xie2021 Lee2019; do
         --nsnp_win ${win} \
         --dirPre win${win}_ \
         --suffix
+      sleep 5
     done
   done
 
-  ## 统计准确性和方差组分结果
+  ## Statistical Accuracy and Variance Component Results
   for type in accur var; do
     $GP_cross \
       --type ${type} \
@@ -251,5 +256,6 @@ for source in Xie2021 Lee2019; do
       --bin "fix" \
       --traits "${traits_all[*]}" \
       --code ${code}
+    sleep 5
   done
 done
